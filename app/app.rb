@@ -71,7 +71,7 @@ class BookmarkManager < Sinatra::Base
 
   delete '/sessions' do
     session[:user_id] = nil
-    flash.now[:notice] = 'goodbye!'
+    flash.keep[:notice] = 'goodbye!'
     redirect to '/links'
   end
 
