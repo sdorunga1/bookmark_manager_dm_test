@@ -11,6 +11,7 @@ class User
   property :password_digest, Text
 
   validates_confirmation_of :password
+  validates_format_of :email, as: :email_address
 
   def password=(password)
     @password = password

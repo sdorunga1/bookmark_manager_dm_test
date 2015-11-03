@@ -19,6 +19,11 @@ feature 'User sign up' do
     expect(page).to have_content('Email is already taken')
   end
 
+  scenario 'I cannot sign up with an invalid email account' do
+    expect { sign_up(email: "invalid_email") }.not_to change(User, :count)
+    expect(current_path).to eq('/users')
+    expect(page).to have_content('Email has an invalid format')
+  end
   scenario 'requires a matching confirmation password' do
     # again it's questionable whether we should be testing the model at this
     # level.  We are mixing integration tests with feature tests.
