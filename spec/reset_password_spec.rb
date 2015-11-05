@@ -1,8 +1,13 @@
-# todo
-
 require 'timecop'
 
 feature 'Resetting Password' do
+
+  before do
+    sign_up
+    Capybara.reset!
+  end
+  let(:user){User.first}
+
   scenario 'When I forget my password I can see a link to reset' do
     visit '/sessions/new'
     click_link 'I forgot my password'
@@ -16,32 +21,58 @@ feature 'Resetting Password' do
   end
 
   scenario 'assigned a reset token to the user when they recover' do
-    sign_up
-    expect{recover_password}.to change{User.first.token}
+    expect{recover_password}.to change {User.first.password_token}
   end
 
   scenario 'it sets the time the password was saved' do
-    sign_up
     Timecop.freeze do
       recover_password
-      expect(User.first.password_token_time).to be_within(1).of DateTime.now
+      expect(User.first.password_token_time).to be_within(1).of Time.now
     end
   end
 
-  scenario 'it doesn\'t allow you to use the token after an hour' do
-    sign_up
+  scenario 'it asks for your new password when your token is valid' do
     recover_password
-    Timecop.travel(60 * 60 * 60)
-    visit("/users/reset_password?token=#{User.first.token}")
-    expect(page).to have_content "Your token is invalid"
-  end
-
-  scenario 'it redirects you to a new password page when your token is valid' do
-    sign_up
-    recover_password
-    visit("/users/reset_password?token=#{User.first.token}")
+    visit("/users/reset_password?token=#{user.password_token}")
     expect(page).to have_content("Please enter your new password")
   end
+
+  scenario 'it doesn\'t allow you to use the token after an hour' do
+    recover_password
+    Timecop.travel(60 * 60 * 60) do
+      visit("/users/reset_password?token=#{user.password_token}")
+      expect(page).to have_content "Your token is invalid"
+    end
+  end
+
+  scenario 'it lets you enter a new password with a valid token' do
+    recover_password
+    visit("/users/reset_password?token=#{user.password_token}")
+    fill_in :password, with: "newpassword"
+    fill_in :password_confirmation, with: "newpassword"
+    click_button "Submit"
+    expect(page).to have_content("Please sign in")
+  end
+
+  scenario 'it lets you sign in after password reset' do
+    recover_password
+    visit("/users/reset_password?token=#{user.password_token}")
+    fill_in :password, with: "newpassword"
+    fill_in :password_confirmation, with: "newpassword"
+    click_button "Submit"
+    sign_in(email: "alice@example.com", password: "newpassword")
+    expect(page).to have_content "Welcome, alice@example.com"
+  end
+
+  scenario 'it lets you know if you\'re passwords don\'t match' do
+    recover_password
+    visit("/users/reset_password?token=#{user.password_token}")
+    fill_in :password, with: "newpassword"
+    fill_in :password_confirmation, with: "wrongpassword"
+    click_button "Submit"
+    expect(page).to have_content("Password does not match the confirmation")
+  end
+
 
   def recover_password
     visit '/users/recover'

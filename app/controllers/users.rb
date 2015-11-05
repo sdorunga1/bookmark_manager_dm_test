@@ -1,5 +1,4 @@
 class BookmarkManager < Sinatra::Base
-  require 'securerandom'
   get '/users/new' do
     @user = User.new
     erb :'users/new'
@@ -27,18 +26,29 @@ class BookmarkManager < Sinatra::Base
   post '/users/recover' do
     user = User.first(email: params[:email])
     if user
-      user.password_token = SecureRandom.hex
-      user.save
+      user.generate_token
     end
     erb :'users/acknowledgment'
   end
 
   get '/users/reset_password' do
-    @user = User.find_by_token(params[:token])
-    if(@user)
-      "Please enter your new password"
+    @token = params[:token]
+    user = User.find_by_valid_token(@token)
+    if(user)
+      erb :'users/reset_password'
     else
       "Your token is invalid"
+    end
+  end
+
+  patch '/users/reset_password' do
+    user = User.find_by_valid_token(params[:token])
+    user.update(password: params[:password], password_confirmation: params[:password_confirmation])
+    if user.save
+      redirect "/sessions/new"
+    else
+      flash.now[:errors] = user.errors.full_messages
+      erb :'users/reset_password'
     end
   end
 
